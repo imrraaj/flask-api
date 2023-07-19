@@ -54,22 +54,19 @@ def validate_schema(schema):
                 return fn(*args, **kwargs)
         return wrapped
     return wrapper
-def role_required(*allowed_roles):
+def role_required(allowed_roles):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             verify_jwt_in_request()  # Verify JWT token in the request
             current_user = get_jwt_identity()
-            print(current_user)
             current_role = current_user['role']
 
             if not current_role:
                 raise NoAuthorizationError("Invalid token")
 
-            if current_role in user_roles:
-                allowed_rules = user_roles[current_role]
-                if any(rule in allowed_rules for rule in allowed_roles):
-                    return func(*args, **kwargs)
+            if current_role == allowed_roles.name:
+                return func(*args, **kwargs)
 
             return jsonify({'message': 'Unauthorized'}), 403
 
@@ -128,7 +125,7 @@ def protected():
 
 
 
-@app.route('/change-password', methods=['POST'])
+@app.post('/change-password')
 @limiter.limit("10/minute") 
 @jwt_required()
 @validate_schema({
@@ -168,7 +165,7 @@ def change_password():
     },
     "required": ["username"]
 })
-@role_required('write')
+@role_required(UserRole.ADMIN)
 def promote_user():
     data = request.get_json()
     username = data.get('username')
@@ -188,7 +185,7 @@ def promote_user():
     },
     "required": ["username"]
 })
-@role_required('write')
+@role_required(UserRole.ADMIN)
 def revoke_user():
     data = request.get_json()
     username = data.get('username')
@@ -198,6 +195,14 @@ def revoke_user():
     user.role = UserRole.USER
     db.session.commit()
     return make_response(jsonify({'status': True, 'message': 'User priviledge upgraded!!'}), 201)
+
+@app.get('/dashboard')
+@role_required(UserRole.ADMIN)
+def dash():
+    return "success"
+
+
+
 
 
 if __name__ == "__main__":
