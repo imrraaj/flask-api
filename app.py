@@ -12,7 +12,7 @@ from flask_migrate import Migrate
 from sqlalchemy import or_
 
 # Data models
-from models import db, User, user_roles, UserRole
+from models import db, User, UserRole, Product, ProductImage, Category
 from validators import login_schema, register_schema
 
 #app init
@@ -149,14 +149,6 @@ def change_password():
     return make_response(jsonify({'status': True, 'message': 'Password changed successfully!'}), 201)
 
 
-
-# @app.get('/get-dummy-token-admin')
-# def get_token():
-#     access_token = create_access_token(identity={'id': 1, 'role': UserRole.ADMIN.name})
-#     return make_response(jsonify({'status': True, 'access_token': 'Bearer '+ access_token}), 201)
-
-
-
 @app.post('/grant-user-permission')
 @validate_schema({
     "type": "object",
@@ -202,7 +194,183 @@ def dash():
     return "success"
 
 
+@app.get('/get-dummy-token-admin')
+def get_token():
+    access_token = create_access_token(identity={'id': 1, 'role': UserRole.ADMIN.name})
+    return make_response(jsonify({'status': True, 'access_token': 'Bearer '+ access_token}), 201)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app.get('/products')
+def get_all_products():
+    products_with_images  = Product.query.outerjoin(ProductImage).all()
+    result = []
+    for product in products_with_images :
+        result.append({
+            'id': product.id,
+            'name': product.name,
+            'price': product.price,
+            'description': product.description,
+            'category_id': product.category_id,
+            'images': [{'image_url': image.url, 'product_id': image.product_id} for image in product.images]
+        })
+    return jsonify(result)
+
+@app.get('/products/<int:product_id>')
+def get_single_product(product_id):
+    product = Product.query.filter_by(id=product_id).outerjoin(ProductImage).first()
+    return jsonify({
+        'id': product.id,
+        'name': product.name,
+        'price': product.price,
+        'description': product.description,
+        'category_id': product.category_id,
+        'image': [{'image_url': image.url, 'product_id': image.product_id} for image in product.images]
+    })
+
+
+
+@app.post('/products')
+@role_required(UserRole.ADMIN)
+@validate_schema({
+    "type": "object",
+    "properties": {
+        "name": { "type": "string", "minLength": 4, "maxLength": 20 },
+        "price": { "type": "number"},
+        "description": { "type": "string", "minLength": 4},
+        "category": { "type": "string", "minLength": 4, "maxLength": 20 },
+        "images": { "type": "array", "minLength": 4 },
+    },
+    "required": ["name", "price","category","description"]
+})
+@role_required(UserRole.ADMIN)
+def create_a_product():
+    data = request.get_json()
+    name = data.get('name')
+    price = data.get('price')
+    category_name = data.get('category')
+    images = data.get('images')
+    description = data.get('description')
+    # check category if exists add the id
+    # else create it.
+    category = Category.query.filter_by(name=category_name).first()
+    if not category:
+        return jsonify({'message': 'Category not found'}), 404
+    new_prod = Product(name=name,price=price, description=description, category_id=category.id)
+    db.session.add(new_prod)
+    db.session.commit()
+    for image in images:
+        prod_images  = ProductImage(product_id=new_prod.id,url=image)
+        db.session.add(prod_images)
+    db.session.commit()
+    return make_response(jsonify({'status': True }), 201)
+
+
+
+
+
+######
+@app.put('/products/<int:product_id>')
+@role_required(UserRole.ADMIN)
+@validate_schema({
+    "type": "object",
+    "properties": {
+        "name": { "type": "string", "minLength": 4, "maxLength": 20 },
+        "price": { "type": "number" },
+        "description": { "type": "string", "minLength": 4},
+        "category": { "type": "string", "minLength": 4, "maxLength": 20 },
+        "images": { "type": "array", "minLength": 4 },
+    }
+})
+@role_required(UserRole.ADMIN)
+def update_a_product(product_id):
+    data = request.get_json()
+    name = data.get('name')
+    price = data.get('price')
+    category_name = data.get('category')
+    images = data.get('images')
+    description = data.get('description')
+
+    product =  Product.query.filter_by(id=product_id).outerjoin(ProductImage).first()
+    print(name,price, description, category_name)
+    if name is not None:
+        product.name = name
+    if price is not None:
+        product.price = price
+    if description is not None:
+        product.description = description
+
+
+    if category_name is not None:
+        category = Category.query.filter_by(name=category_name).first()
+        if not category:
+            return jsonify({'message': 'Category not found'}), 404
+        product.category_id = category.id
+    if images is not None:
+        for image in images:
+            prod_images  = ProductImage(product_id= product.id, url=image)
+            db.session.add(prod_images)
+    
+    db.session.commit()
+    return make_response(jsonify({'status': True }), 201)
+
+
+
+
+
+
+@app.get('/category')
+def get_all_category():
+    db_categories  = Category.query.all()
+    category_list = [{'id': category.id, 'name': category.name} for category in db_categories]
+    print(category_list)
+    return jsonify(category_list)
+
+@app.delete('/category/<int:category_id>')
+@role_required(UserRole.ADMIN)
+def delete_category(category_id):
+    category = Category.query.get(category_id)
+    if category:
+        db.session.delete(category)
+        db.session.commit()
+        return jsonify({'message': 'Category deleted successfully'})
+    else:
+        return jsonify({'message': 'Category not found'}), 404
+
+@app.post('/category')
+@role_required(UserRole.ADMIN)
+@validate_schema({
+   "type": "object",
+    "properties": {
+        "name": { "type": "string", "minLength": 4, "maxLength": 20 },
+    },
+    "required": ["name"]
+})
+def add_single_category():
+    data = request.get_json()
+    name = data.get('name')
+    category = Category(name=name)
+    db.session.add(category)
+    db.session.commit()
+    return make_response(jsonify({'status': True }), 201)
 
 
 if __name__ == "__main__":
