@@ -1,0 +1,6 @@
+a api endpoint for calculating the order and
+another one for placing the order. 
+
+add when you used the reward
+
+add birthday of the Users

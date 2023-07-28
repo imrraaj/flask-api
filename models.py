@@ -13,7 +13,10 @@ class OrderStatus(Enum):
     CANCELLED = 'CANCELLED',
     PAID = 'PAID',
     DELIVERY = 'DELIVERY'
-
+class RewardStatus(Enum):
+    NOT_REDEEMED = 'NOT_REDEEMED',
+    REDEEMED = 'REDEEMED',
+    EXPIRED = 'EXPIRED'
 
 class User(db.Model):
     id = db.Column(db.Integer , primary_key=True)
@@ -24,6 +27,9 @@ class User(db.Model):
     email = db.Column(db.String(80), unique=True, nullable=False)
     avatar = db.Column(db.String(100))
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    rewards = db.relationship('Reward', backref='user', lazy=True)
+
+    
     def __init__(self, name, username, password, email, avatar):
         self.name = name
         self.username = username
@@ -94,3 +100,27 @@ class OrderDetail(db.Model):
         self.product_id = product_id
         self.quantity = quantity
         self.price = price
+
+class Reward(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    discount_percentage = db.Column(db.Float, nullable=False)
+    expiry_date = db.Column(db.Date, nullable=False)
+    custom_code = db.Column(db.String(8), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    used_on = db.Column(db.DateTime(timezone=True), nullable=True)
+    status = db.Column(db.Enum(RewardStatus), default=RewardStatus.NOT_REDEEMED)
+
+
+    def __init__(self, name, description, discount_percentage, expiry_date, custom_code,user_id):
+        self.name = name
+        self.description = description
+        self.discount_percentage = discount_percentage
+        self.expiry_date = expiry_date
+        self.custom_code = custom_code
+        self.user_id = user_id
+
+    def __repr__(self):
+        return f'<Reward {self.name}> {self.discount_percentage} isUsed = {self.used}>'
+    
