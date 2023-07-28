@@ -12,12 +12,12 @@ from flask_migrate import Migrate
 from sqlalchemy import or_
 
 # Data models
-from models import db, User, UserRole, Product, ProductImage, Category
+from models import db, User, UserRole, Product, ProductImage, Category, Order, OrderDetail, OrderStatus
 from validators import login_schema, register_schema
 
 #app init
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root@localhost:3306/flask'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'your_secret_key'
 app.config['SECRET_KEY'] = 'any secret string'
@@ -371,6 +371,106 @@ def add_single_category():
     db.session.add(category)
     db.session.commit()
     return make_response(jsonify({'status': True }), 201)
+
+
+
+
+
+
+
+
+
+@app.post('/order')
+@role_required(UserRole.USER)
+@validate_schema({
+    "type": "object",
+    "properties": {
+        "items": {
+            "type": "array",
+            "properties": {
+                "product_id": {"type": "integer"},
+                "quantity": {"type": "integer", "minimum": 1}
+            },
+            "required": ["product_id", "quantity"]
+        }
+    },
+    "required": ["items"]
+})
+def create_order():
+    data = request.get_json()
+    items = data.get('items')
+    current_user = get_jwt_identity()['id']
+    new_order = Order(user_id = current_user, total_amount=0)
+    db.session.add(new_order)
+    db.session.commit()
+
+
+    for item in items:
+        prod_id = item['product_id']
+        quantity = item['quantity']
+
+        #check if the product even exists or not
+        prod_exists  = Product.query.filter_by(id=prod_id).first()
+        if not prod_exists:
+            return make_response(jsonify({'status': False, 'error': f"Product id: {prod_id} doesn't exist"}), 401)
+        
+        price = prod_exists.price * quantity
+        new_order.total_amount = new_order.total_amount + price
+
+        new_order_details = OrderDetail(order_id=new_order.id, product_id=prod_id, quantity=quantity,price = price)
+        db.session.add(new_order_details)
+
+    db.session.commit()
+    return make_response(jsonify({'status': True, 'total_amount': new_order.total_amount}), 201)
+
+
+@app.get('/orders')
+@role_required(UserRole.USER)
+def get_all_order():
+
+    user_id = get_jwt_identity()['id']
+    user_orders  = Order.query.filter_by(user_id = user_id).outerjoin(OrderDetail).all()
+    orders_list = []
+    for single_order in user_orders:
+        orders_list.append(
+            {'id': single_order.id, 'order_date': single_order.order_date, 'total_amount': single_order.total_amount ,
+            'order_status': single_order.status.value,
+             'order_details': [{'product_id': od.product_id, 'quantity': od.quantity, 'price': od.price} for od in single_order.order_details]
+            }
+        )
+    return jsonify({ 'status': True,  'orders': orders_list }), 200
+
+
+
+
+
+
+#Change the status
+@app.get('/change-order-status/<int:id>')
+@role_required(UserRole.ADMIN)
+def change_order_status(id):
+    user_order  = Order.query.filter_by(id = id).first()
+    
+    if user_order.status == OrderStatus.ORDERED:
+        user_order.status = OrderStatus.DELIVERY
+
+    if user_order.status == OrderStatus.DELIVERY:
+        user_order.status = OrderStatus.PAID
+        
+    db.session.commit()
+    return jsonify({ 'status': True, }), 200
+
+
+
+
+
+
+@app.get('/d')
+def delete():
+    o = Order.query.where(True).all()
+    db.session.delete(o)
+    db.session.commit()
+    return {}
 
 
 if __name__ == "__main__":

@@ -8,6 +8,12 @@ class UserRole(Enum):
     ADMIN = 'ADMIN'
     USER = 'USER'
     GUEST = 'GUEST'
+class OrderStatus(Enum):
+    ORDERED = 'ORDERED'
+    CANCELLED = 'CANCELLED',
+    PAID = 'PAID',
+    DELIVERY = 'DELIVERY'
+
 
 class User(db.Model):
     id = db.Column(db.Integer , primary_key=True)
@@ -63,3 +69,28 @@ class Category(db.Model):
     
     def __init__(self, name):
         self.name = name
+
+
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    order_date = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    total_amount = db.Column(db.Float, nullable=False)
+    order_details = db.relationship('OrderDetail', backref='order', lazy=True)
+    status = db.Column(db.Enum(OrderStatus), default=OrderStatus.ORDERED)
+    def __init__(self, user_id, total_amount):
+        self.user_id = user_id
+        self.total_amount = total_amount
+
+class OrderDetail(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+
+    def __init__(self, order_id, product_id, quantity, price):
+        self.order_id = order_id
+        self.product_id = product_id
+        self.quantity = quantity
+        self.price = price
