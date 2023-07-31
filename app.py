@@ -1,5 +1,4 @@
-import string
-import random
+import string, threading, random
 from functools import wraps
 from datetime import datetime, timedelta
 from jsonschema import Draft4Validator
@@ -10,20 +9,32 @@ from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
+from flask_mail import Mail, Message
 
-
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 
 # Data models
-from models import db, User, UserRole, Product, ProductImage, Category, Order, OrderDetail, OrderStatus, Reward, RewardStatus
+from models import db, User, UserRole, Product, ProductImage, Category, Order, OrderDetail, OrderStatus, Reward, RewardStatus,RewardType
+
 from validators import login_schema, register_schema
 
+from utils import create_email_body
 #app init
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root@localhost:3306/flask'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'your_secret_key'
 app.config['SECRET_KEY'] = 'any secret string'
+
+
+app.config['MAIL_SERVER'] = 'localhost'
+app.config['MAIL_PORT'] = 2525
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = None
+app.config['MAIL_PASSWORD'] = None
+app.config['MAIL_DEFAULT_SENDER'] = 'storefront@shopify.com'
+
 
 # bind the app
 limiter = Limiter(
@@ -36,7 +47,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
-
+mail = Mail(app)
 
 
 def validate_schema(schema):
@@ -109,11 +120,12 @@ def register():
     avatar = data.get('avatar')
     username = data.get('username')
     password = data.get('password')
+    birthdate = data.get('birthdate')
     hashed_password = bcrypt.generate_password_hash(password=password).decode('utf-8')
     does_user_exists = db.session.execute(db.select(User).where(or_(User.username == username, User.email == email))).first()
     if does_user_exists:
         return make_response(jsonify({'status':False, 'message': 'Account already exists with the provided email and username. Please Login'}), 401)  
-    user = User(name=name, avatar=avatar, email=email, username=username, password=hashed_password)
+    user = User(name=name, avatar=avatar, email=email, username=username, password=hashed_password,birth_date=birthdate)
     db.session.add(user)
     db.session.commit()
     return make_response(jsonify({'status': True, 'message': 'User created successfully!'}), 201)
@@ -384,7 +396,7 @@ def add_single_category():
 
 
 @app.post('/order')
-@role_required(UserRole.USER)
+@jwt_required()
 @validate_schema({
     "type": "object",
     "properties": {
@@ -460,6 +472,10 @@ def create_order():
         new_reward = Reward(name="Normal Discount", description="On the purchase of more than 5000", custom_code=custom_code, expiry_date=expiry,user_id=current_user, discount_percentage=10)
         db.session.add(new_reward)
         db.session.commit()
+
+        current_user_data = User.query.filter_by(id=current_user).first()
+        (mail_subject, mail_body) = create_email_body(RewardType.DEFAULT, current_user_data, new_reward)
+        send_email(current_user_data.email, mail_subject, mail_body)
         return make_response(jsonify({'status': True, 
                                       'total_amount': new_order.total_amount, 
                                       'reward': True, 
@@ -470,7 +486,7 @@ def create_order():
 
 
 @app.get('/orders')
-@role_required(UserRole.USER)
+@jwt_required()
 def get_all_order():
 
     user_id = get_jwt_identity()['id']
@@ -528,6 +544,44 @@ def delete():
         })
         
     return make_response(response, 200)
+
+
+
+@app.get('/send-birthday-discount')
+def send_birthday_discount():
+    users_with_birthday_today = User.query.filter(
+                                    func.extract('day', User.birth_date) == datetime.now().day,
+                                    func.extract('month', User.birth_date) == datetime.now().month).all()  
+    send_bunch_mail(users_with_birthday_today)
+    return make_response({}, 200)
+
+
+def send_bunch_mail(users_data):
+    for user in users_data:
+        print(f'sending mail to {user.name}')
+        expiry = datetime.now() + timedelta(days=15)
+        custom_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        new_reward = Reward(name="Birthday Discount", description="A gift for your birthday from us", custom_code=custom_code, expiry_date=expiry,user_id=user.id, discount_percentage=25)
+        db.session.add(new_reward)
+        db.session.commit()
+        (mail_subject, mail_body) = create_email_body(RewardType.BIRTHDAY, user, new_reward)
+        send_email(user.email, mail_subject, mail_body)
+
+
+def send_email(recipient_email, subject, body):
+    msg = Message(subject, recipients=[recipient_email])
+    msg.body = body
+    try:
+        mail.send(msg)
+        return True
+    except Exception as e:
+        print(f'Failed to send email: {e}')
+        return False
+
+
+
+
+
 
 
 if __name__ == "__main__":

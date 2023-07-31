@@ -19,7 +19,8 @@ register_schema = {
             },
     "avatar": { "type": "string" },
     "username": { "type": "string", "minLength": 4, "maxLength": 20 },
-    "password": { "type": "string", "minLength": 6, "maxLength": 80 }
+    "password": { "type": "string", "minLength": 6, "maxLength": 80 },
+    "birthdate": { "type": "string", "format": "date" }
     },
-    "required": ["name", "email", "username", "password"]
+    "required": ["name", "email", "username", "password", "birthdate"]
 }

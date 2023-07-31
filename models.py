@@ -18,10 +18,16 @@ class RewardStatus(Enum):
     REDEEMED = 'REDEEMED',
     EXPIRED = 'EXPIRED'
 
+class RewardType(Enum):
+    DEFAULT = 'DEFAULT',
+    BIRTHDAY = 'REDEEMED',
+    SPECIAL_DEAL = 'SPECIAL_DEAL'
+
 class User(db.Model):
     id = db.Column(db.Integer , primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     username = db.Column(db.String(20), nullable=False)
+    birth_date = db.Column(db.Date, nullable=True)
     role = db.Column(db.Enum(UserRole), default=UserRole.USER)
     password = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(80), unique=True, nullable=False)
@@ -30,12 +36,13 @@ class User(db.Model):
     rewards = db.relationship('Reward', backref='user', lazy=True)
 
     
-    def __init__(self, name, username, password, email, avatar):
+    def __init__(self, name, username, password, email, avatar, birth_date):
         self.name = name
         self.username = username
         self.password = password
         self.email = email
         self.avatar = avatar
+        self.birth_date = birth_date
     def __repr__(self):
         return f'<User {self.id}: {self.name} {self.username}>'
 
