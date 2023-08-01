@@ -1,18 +1,19 @@
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 from enum import Enum
-db = SQLAlchemy()
+from main import db
 
 
 class UserRole(Enum):
     ADMIN = 'ADMIN'
     USER = 'USER'
     GUEST = 'GUEST'
+
 class OrderStatus(Enum):
     ORDERED = 'ORDERED'
     CANCELLED = 'CANCELLED',
     PAID = 'PAID',
     DELIVERY = 'DELIVERY'
+    
 class RewardStatus(Enum):
     NOT_REDEEMED = 'NOT_REDEEMED',
     REDEEMED = 'REDEEMED',

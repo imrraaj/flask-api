@@ -1,4 +1,5 @@
-from models import RewardType,User,Reward
+from models.models import *
+
 def create_email_body(reward_type: RewardType, user_obj: User, reward_obj:Reward):
     if reward_type == RewardType.DEFAULT:
         return default_reward(user_obj, reward_obj)
@@ -41,4 +42,3 @@ def birthday_reward(user_obj, reward_obj):
     Warm regards,
     The Storefront Team
 """)
-
