@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:latest
+    container_name: my-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rajpatel
+      MYSQL_DATABASE: storefront
+      MYSQL_USER: raj
+      MYSQL_PASSWORD: rajpatel
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  smtp4dev:
+    image: rnwood/smtp4dev:latest
+    container_name: smtp4dev
+    restart: always
+    ports:
+      - "3000:80"
+      - "2525:25"
+      - "2526:2525"
+
+volumes:
+  mysql_data:

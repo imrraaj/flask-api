@@ -23,6 +23,7 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
+    SQLALCHEMY_DATABASE_URI = os.environ.get('PRODUCTION_DATABASE_URL')
     # Add other production-specific settings here, like database configurations, caching, etc.
 
 class TestingConfig(Config):

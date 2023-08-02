@@ -13,7 +13,7 @@ def get_all_category():
     print(category_list)
     return jsonify(category_list)
 
-@category_bp.delete('/view/<int:category_id>')
+@category_bp.delete('/delete/<int:category_id>')
 @role_required(UserRole.ADMIN)
 def delete_category(category_id):
     category = Category.query.get(category_id)

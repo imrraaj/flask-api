@@ -1,3 +1,9 @@
+To run the server
+
+```
+flask --app src\main\app.py run
+```
+
 This API has
 
 - user login
