@@ -1,2 +1,0 @@
-a api endpoint for calculating the order and
-another one for placing the order. 
