@@ -4,6 +4,7 @@ from auth.auth import auth_bp
 from product.product import products_bp
 from order.order import orders_bp
 from reward.reward import rewards_bp
+from categoy.category import category_bp
 
 from models.models import db
 from . import limiter, migrate, bcrypt, jwt, mail
@@ -44,6 +45,7 @@ app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(products_bp, url_prefix='/products')
 app.register_blueprint(orders_bp, url_prefix='/orders')
 app.register_blueprint(rewards_bp, url_prefix='/rewards')
+app.register_blueprint(category_bp, url_prefix='/category')
 
 
 
