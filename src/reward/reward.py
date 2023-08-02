@@ -1,10 +1,10 @@
-import datetime
-from flask import Blueprint, make_response
+import datetime, os
+from flask import Blueprint, make_response, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models.models import Reward, User, RewardType
+from models.models import Reward, User, RewardType, UserRole
 from main import db
 from sqlalchemy import func
-from utils import generate_reward_code
+from utils import generate_reward_code, validate_schema
 from mail.utils import create_email_body
 from mail.mail import send_email
 rewards_bp = Blueprint('rewards', __name__)
@@ -45,10 +45,22 @@ def view_all():
 
 
 
-@rewards_bp.get('/send-birthday-discount')
+@rewards_bp.post('/send-birthday-discount')
+@validate_schema({
+    "type": "object",
+    "properties": {
+        "api_key": { "type": "string", "minLength": 1 },
+    },
+    "required": ["api_key"]
+})
 def send_birthday_discount():
+    data = request.get_json()
+    api_key = data['api_key']
+    API_KEY = os.environ.get('API_KEY')
+    if api_key is None or api_key != API_KEY:
+        return make_response({'status': False , 'message': "The API key is Invalid"}, 400)
     users_with_birthday_today = User.query.filter(
                                     func.extract('day', User.birth_date) == datetime.datetime.now().day,
                                     func.extract('month', User.birth_date) == datetime.datetime.now().month).all()  
     send_bunch_mail(users_with_birthday_today)
-    return make_response({}, 200)
+    return make_response({'status': True }, 200)
