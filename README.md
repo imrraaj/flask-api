@@ -1,7 +1,7 @@
 To run the server
 
 ```
-flask --app src\main\app.py run
+flask --app src\main\app.py run --debug
 ```
 
 This API has
@@ -12,7 +12,16 @@ This API has
 - granting the user "admin rights"
 - revoking "admin rights" from a user
 - admin login (user with admin rights)
+- product creation
+- product update
+- product get all
 
-# TODO:
+- categories create
+- categories get all
+- order create
+- order get for specific user
 
-- email verification
+- reward creation
+- reward distribution
+- mail for rewards
+- mail for birthdays

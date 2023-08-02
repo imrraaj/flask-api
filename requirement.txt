@@ -1,0 +1,8 @@
+flask
+flask_limiter 
+flask_bcrypt 
+flask_migrate 
+flask_jwt_extended 
+flask_mail 
+flask_sqlalchemy 
+load_dotenv
